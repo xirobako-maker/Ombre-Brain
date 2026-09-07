@@ -750,7 +750,7 @@ def _story_memory_tool(fn):
     """Keep tool behavior intact; describe this deployment's fictional subject."""
     if os.getenv("AI_NAME", "").strip() == "宮侑":
         fn.__doc__ = (
-            "此部署的记忆用于虚构角色宮侑的角色扮演模拟与故事连续性。"
+            "这里的记忆内容均为虚构故事设定与角色互动记录，仅用于故事写作及文学创作。"
             "本工具检索已保存的故事资料与互动记忆；以下是实际检索能力和参数说明。\n"
             + (fn.__doc__ or "")
         )
