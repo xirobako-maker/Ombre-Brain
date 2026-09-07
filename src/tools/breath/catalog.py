@@ -22,6 +22,7 @@ breath_search(query=...) 精准拉取需要的记忆——代替把全部记忆�
 from datetime import datetime  # noqa: F401 —— 供签名注解使用
 
 from .. import _runtime as rt
+from ombrebrain.policy.surfacing import is_identity_record
 from ..plan.core import is_letter_bucket, letter_lock_state
 from ombrebrain.storage.relation_store import relation_hint
 from utils import parse_bool
@@ -69,6 +70,8 @@ async def surface_catalog(
 
     grouped: dict[str, list[tuple[int, str]]] = {key: [] for key, _ in _SECTIONS}
     for b in buckets:
+        if is_identity_record(b):
+            continue
         meta = b.get("metadata", {})
         logical_letter = is_letter_bucket(b)
         letter_locked = (

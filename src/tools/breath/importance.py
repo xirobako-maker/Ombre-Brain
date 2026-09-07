@@ -24,6 +24,7 @@ tools/breath/importance.py — importance_min 模式
 from datetime import datetime  # noqa: F401 —— 供签名注解使用
 
 from .. import _runtime as rt
+from ombrebrain.policy.surfacing import is_identity_record
 from .._common import is_importance_audit_candidate
 from ..plan.core import is_letter_bucket
 from ._date_range import bucket_in_created_range
@@ -76,7 +77,7 @@ def _select_importance_buckets(buckets: list[dict], importance_min: int, limit: 
     # list_all() can expose historical/manual duplicate files with one logical
     # bucket ID. Match BucketManager's first canonical row before limiting so
     # both short and long result sets remain auditable against quota counts.
-    unique = _deduplicate_buckets(buckets)
+    unique = _deduplicate_buckets([b for b in buckets if not is_identity_record(b)])
     ordered = sorted(unique, key=_importance_sort_key, reverse=True)
     if len(ordered) <= limit:
         return ordered
