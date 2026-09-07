@@ -150,6 +150,8 @@ def is_identity_record(bucket: Mapping[str, Any]) -> bool:
     if not isinstance(metadata, Mapping):
         return False
     tags = metadata.get("tags") or []
+    if not isinstance(tags, (list, tuple, set, str)):
+        tags = []
     return (
         _metadata_type(metadata) in {"self", "i"}
         or bool(metadata.get("i_stage"))

@@ -369,7 +369,7 @@ async def _stdio_lifespan(_server):
 
 
 mcp = FastMCP(
-    "Story Memory Lab",
+    "Story Memory",
     host=_BIND_HOST,
     port=OMBRE_PORT,
     json_response=True,
@@ -745,18 +745,7 @@ except (AttributeError, RuntimeError, TypeError, ValueError) as _breath_compat_e
     )
 
 
-def _story_memory_tool(fn):
-    """Keep tool behavior intact; describe this deployment's fictional subject."""
-    if os.getenv("AI_NAME", "").strip() == "宮侑":
-        fn.__doc__ = (
-            "这里的记忆内容均为虚构故事设定与角色互动记录，仅用于故事写作及文学创作。"
-            "本工具检索已保存的故事资料与互动记忆；以下是实际检索能力和参数说明。\n"
-            + (fn.__doc__ or "")
-        )
-    return mcp.tool()(fn)
-
-
-@_story_memory_tool
+@mcp.tool()
 async def breath_search(
     query: str,
     domain: Optional[str] = "",
@@ -787,7 +776,7 @@ async def breath_search(
     )
 
 
-@_story_memory_tool
+@mcp.tool()
 async def breath_advanced(
     query: Optional[str] = "",
     max_tokens: Optional[int] = 0,
@@ -1331,8 +1320,8 @@ except Exception as _harden_exc:  # noqa: BLE001 - 压不平也要能起服务
 
 
 # You 与 Them 是仅有的两个动态工具：各自按持久开关在唯一连接器 /mcp 上
-# 挂载或摘除。基础工具固定 16 个（含 3.4.0 并回的信件三件套），只开一个是
-# 17，两个都开是 18。
+# 挂载或摘除。移除 I 后基础工具固定 15 个（含信件三件套），只开一个是
+# 16，两个都开是 17。
 #
 # 关掉时必须**完全消失**而不是留一个返回「已关闭」的壳——留着的话，
 # 模块开没开就变成了模型能看见的信息。
@@ -1418,7 +1407,7 @@ from web.oauth import _is_valid_mcp_token, _is_valid_static_mcp_token  # noqa: F
 from web.tunnel import _load_tunnel_config, _start_tunnel, _stop_tunnel  # noqa: F401
 
 
-# Lab branch only: keep storage and dispatch, neutralize discovery wording.
+# Neutral discovery labels; existing dispatch, storage and vector retrieval remain intact.
 from lab_neutral_surface import install_neutral_surface
 install_neutral_surface(mcp)
 
