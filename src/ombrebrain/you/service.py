@@ -7,6 +7,7 @@ import logging
 import re
 from typing import Any, Mapping
 
+from ombrebrain.storage.letter_lock import letter_is_open_to_ai
 from ombrebrain.storage.source_store import source_links_from_metadata
 from utils import count_tokens_approx, parse_bool
 
@@ -16,7 +17,6 @@ from .models import (
     VALID_BASES,
     EvidenceEdge,
     ModuleState,
-    ReviewReceipt,
     Scope,
     YouClaim,
     evidence_digest,
@@ -379,7 +379,16 @@ class YouService:
                 raise ValueError(f"找不到记忆桶 {bucket_id}，无法作为依据。")
             metadata = dict(bucket.get("metadata") or {})
             bucket_type = str(metadata.get("type") or "dynamic").strip().lower()
-            if bucket_type in _IGNORED_BUCKET_TYPES:
+            if bucket_type == "letter":
+                # 3.6.5：信可以当依据，但只限对 AI 已经开着的那些。理由同 them——
+                # 有人把日记写进 letter，一概拒掉等于让这条路在那种用法下用不了；
+                # 而上锁的信必须仍然挡住，否则模型能拿一封自己还读不到的信当证据。
+                if not letter_is_open_to_ai(bucket):
+                    raise ValueError(
+                        f"{bucket_id} 是还没对你开放的信，不能作为依据。"
+                        "等它解锁之后再用，或者换一条现在就读得到的记忆。"
+                    )
+            elif bucket_type in _IGNORED_BUCKET_TYPES:
                 raise ValueError(
                     f"{bucket_id} 是 {bucket_type} 类型，不能作为 you 的依据。"
                 )
@@ -488,34 +497,7 @@ class YouService:
         return self._promote_if_ready(stored)
 
     def _record_confirmation(self, claim: YouClaim) -> YouClaim:
-        """给这条认识记一笔"模型今天重申过"。同一天重复调用只算一次。
-
-        收据绑当前的 evidence_revision：证据集合一变，先前的重申自动不算数
-        （见 models.YouClaim.review_date_count），所以"改一条 you 也要重新攒
-        三天"不需要另写逻辑。正文变更的重置在 write() 里单独处理，因为
-        evidence_revision 不含正文。
-        """
-
-        # "今天"和收据时间戳必须同源：ReviewReceipt.review_date 取的是
-        # reviewed_at 的前 10 位，这里若另用 datetime.now() 判重，两个时间源在
-        # 跨日的那一瞬间会给出不同答案，可能让同一天记下两条收据。
-        stamped = utc_now()
-        today = stamped[:10]
-        already = any(
-            receipt.review_date == today
-            and receipt.evidence_revision == claim.evidence_revision
-            for receipt in claim.review_receipts
-        )
-        if already:
-            return claim
-        receipt = ReviewReceipt(
-            reviewed_at=stamped,
-            reviewer_role_id=claim.scope.observer_role_id,
-            evidence_revision=claim.evidence_revision,
-            policy_version=POLICY_VERSION,
-            result="reaffirmed",
-        )
-        return replace(claim, review_receipts=(*claim.review_receipts, receipt))
+        return claim.with_confirmation(POLICY_VERSION, utc_now())
 
     def _promote_if_ready(self, claim: YouClaim) -> YouClaim:
         if claim.lifecycle != "candidate":
