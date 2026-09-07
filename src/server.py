@@ -370,7 +370,7 @@ async def _stdio_lifespan(_server):
 
 
 mcp = FastMCP(
-    "Ombre Brain",
+    "Story Memory Lab",
     host=_BIND_HOST,
     port=OMBRE_PORT,
     json_response=True,
@@ -1441,6 +1441,11 @@ from web.oauth import _is_valid_mcp_token, _is_valid_static_mcp_token  # noqa: F
 # 这里把启动/关停 lifespan 要用的 helper import 回来。
 # ============================================================
 from web.tunnel import _load_tunnel_config, _start_tunnel, _stop_tunnel  # noqa: F401
+
+
+# Lab branch only: keep storage and dispatch, neutralize discovery wording.
+from lab_neutral_surface import install_neutral_surface
+install_neutral_surface(mcp)
 
 
 # --- Entry point / 启动入口 ---
