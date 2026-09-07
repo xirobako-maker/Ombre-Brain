@@ -3064,6 +3064,16 @@
 
       <div>
         <div style="font-weight:600;font-size:13px;margin-bottom:6px;">默认参数 <span class="en">Defaults</span><span style="font-weight:400;font-size:11px;color:var(--text-light);margin-left:6px;">（与「引擎」共用「保存」按钮）</span></div>
+        <div class="config-row">
+          <label for="cfg-deletion-approval">删除需 AI 同意</label>
+          <select id="cfg-deletion-approval" aria-describedby="deletion-policy-hint">
+            <option value="true">开启：提交申请</option>
+            <option value="false">关闭：确认后直接生效</option>
+          </select>
+          <button type="button" onclick="saveDeletionPolicy()">保存</button>
+        </div>
+        <p id="deletion-policy-hint" style="font-size:12px;color:var(--text-light);">适用于手动归档和删除。关闭后不用填写理由或等 AI 批准；记忆仍保留在删除档案中。切换不会执行已有申请。</p>
+        <p id="deletion-policy-msg" role="status" aria-live="polite" style="font-size:12px;"></p>
         <div class="config-row"><label>合并阈值</label><input type="number" id="cfg-merge" min="0" max="100" /></div>
         <div style="margin-top:-4px;padding-left:122px;font-size:11px;color:var(--text-light);">0-100，越高越难合并相似桶</div>
         <div class="config-row"><label>breath 默认桶数</label><input type="number" id="cfg-sf-breath-results" min="1" max="50" /></div>
@@ -5273,7 +5283,7 @@ async function runBucketBatch(action) {
   if (!confirm('确认对 ' + ids.length + ' 条记忆执行“' + labels[action] + '”？')) return;
   var reason = '';
   var allKnownTests = ids.every(isKnownErasableTestBucket);
-  if (action === 'archive' && !allKnownTests) {
+  if (action === 'archive' && !allKnownTests && await deletionApprovalRequired()) {
     reason = prompt('Why should these memories be archived? A reason is required.');
     if (reason === null) return;
     if (!reason.trim()) return alert('Archive reason is required.');
@@ -5906,9 +5916,12 @@ async function bucketResolve(id) {
 }
 
 async function bucketArchive(id) {
-  if (!confirm('确认申请归档此桶？需填写理由并由 AI 审批；批准后它将从浮现/搜索中隐藏，文件仍保留在 archive/ 目录并标记为已删除。\n\nRequest archive? AI approval is required. The file remains in archive/ with a deletion marker.')) return;
+  var approvalRequired = await deletionApprovalRequired();
+  if (!confirm(approvalRequired
+    ? '确认申请归档此桶？需填写理由并由 AI 审批；批准后它将从浮现/搜索中隐藏，文件仍保留在 archive/ 目录并标记为已删除。\n\nRequest archive? AI approval is required. The file remains in archive/ with a deletion marker.'
+    : '确认归档这条记忆？确认后立即从浮现和搜索中移除，内容仍保留在删除档案中。')) return;
   var reason = '';
-  if (!isKnownErasableTestBucket(id)) {
+  if (approvalRequired && !isKnownErasableTestBucket(id)) {
     reason = prompt('为什么要归档这条记忆？必须填写理由，由 AI 审批。 / Why should this memory be archived? AI approval is required.');
     if (reason === null) return;
     if (!reason.trim()) { alert('Archive reason is required.'); return; }
@@ -7900,12 +7913,41 @@ async function loadOwnerBadge(cfg) {
   } catch (e) { /* ignore：徽标是锦上添花，失败不影响主流程 */ }
 }
 
+async function deletionApprovalRequired() {
+  try {
+    var res = await authFetch('/api/config');
+    if (!res || !res.ok) throw new Error('无法读取删除设置');
+    var cfg = await res.json();
+    return cfg.human_deletion_requires_approval !== false;
+  } catch (e) {
+    // Keep the approval workflow if the setting cannot be read.
+    return true;
+  }
+}
+
+async function saveDeletionPolicy() {
+  var msg = document.getElementById('deletion-policy-msg');
+  msg.textContent = '正在保存…';
+  try {
+    var required = document.getElementById('cfg-deletion-approval').value !== 'false';
+    var res = await authFetch('/api/config', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({human_deletion_requires_approval: required, persist: true})
+    });
+    if (!res) throw new Error('请重新登录');
+    var data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || '保存失败');
+    msg.textContent = required ? '已保存：删除前提交申请。' : '已保存：手动删除确认后直接生效。';
+  } catch (e) { msg.textContent = '保存失败：' + e.message; }
+}
+
 async function loadConfig() {
   try {
     var res = await authFetch('/api/config');
     if (!res) return;
     var cfg = await res.json();
     loadOwnerBadge(cfg);
+    document.getElementById('cfg-deletion-approval').value = cfg.human_deletion_requires_approval === false ? 'false' : 'true';
     document.getElementById('cfg-dehy-model').value = cfg.dehydration.model || '';
     document.getElementById('cfg-dehy-url').value = cfg.dehydration.base_url || '';
     var fmtEl = document.getElementById('cfg-dehy-format');
@@ -9111,7 +9153,7 @@ async function detectPatterns() {
 async function reviewAction(bid, action) {
   try {
     var reason = '';
-    if (action === 'delete') {
+    if (action === 'delete' && await deletionApprovalRequired()) {
       reason = prompt('为什么要删除这条记忆？必须填写理由。 / Why should this memory be deleted?');
       if (reason === null) return;
       if (!reason.trim()) throw new Error('Deletion reason is required.');
@@ -10279,9 +10321,13 @@ async function manageLetterLock(id) {
 }
 
 async function deleteLetter(id) {
-  const reason = prompt('为什么要删除这封信？必须填写理由。 / Why should this letter be deleted?');
-  if (reason === null) return;
-  if (!reason.trim()) { alert('必须填写删除理由。 / Deletion reason is required.'); return; }
+  const approvalRequired = await deletionApprovalRequired();
+  let reason = '';
+  if (approvalRequired) {
+    reason = prompt('为什么要删除这封信？必须填写理由。 / Why should this letter be deleted?');
+    if (reason === null) return;
+    if (!reason.trim()) { alert('必须填写删除理由。 / Deletion reason is required.'); return; }
+  } else if (!confirm('确认将这封信移入删除档案？')) return;
   try {
     const r = await fetch(BASE + '/api/letter/' + encodeURIComponent(id) + '?confirm=true', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({reason}) });
     const d = await r.json();

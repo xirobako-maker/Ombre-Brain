@@ -38,6 +38,11 @@ ai_name: ""
 # Empty = Asia/Shanghai. Falls back to a fixed +08:00 when unresolvable.
 timezone: "Asia/Shanghai"
 
+# Human archive/delete actions: true = request AI approval; false = apply directly.
+# Dashboard authentication and confirmation remain required. Files stay archived.
+# Changing this setting does not execute existing pending requests.
+human_deletion_requires_approval: true
+
 # --- Log level / 日志级别 ---
 log_level: "INFO"
 

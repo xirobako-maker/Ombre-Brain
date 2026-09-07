@@ -303,6 +303,7 @@ def register(mcp) -> None:
                 "feel_max_tokens": int(sh.config.get("surfacing", {}).get("feel_max_tokens") or 15000),
             },
             "merge_threshold": sh.config.get("merge_threshold", 75),
+            "human_deletion_requires_approval": sh.config.get("human_deletion_requires_approval") is not False,
             # 只给日期不写时区时按它理解（Letter 定时锁等）。前端「设置」可改。
             "timezone": _get_timezone_name(),
             "transport": desired["transport"],
@@ -365,6 +366,9 @@ def register(mcp) -> None:
         updated = []
         try:
             persist_requested = _parse_bool(body.get("persist", False))
+            deletion_approval_value = body.get("human_deletion_requires_approval")
+            if "human_deletion_requires_approval" in body and not isinstance(deletion_approval_value, bool):
+                return JSONResponse({"error": "human_deletion_requires_approval must be a boolean"}, status_code=400)
             mcp_auth_value = (
                 _parse_bool(body["mcp_require_auth"])
                 if "mcp_require_auth" in body
@@ -731,6 +735,10 @@ def register(mcp) -> None:
                         status_code=400,
                     )
 
+        if deletion_approval_value is not None:
+            sh.config["human_deletion_requires_approval"] = deletion_approval_value
+            updated.append("human_deletion_requires_approval")
+
         # --- Merge threshold ---
         if merge_threshold_value is not None:
             sh.config["merge_threshold"] = merge_threshold_value
@@ -766,6 +774,8 @@ def register(mcp) -> None:
         # --- Persist to config.yaml if requested ---
         if persist_requested:
             def _mutate(save_config: dict) -> None:
+                if deletion_approval_value is not None:
+                    save_config["human_deletion_requires_approval"] = deletion_approval_value
                 if "dehydration" in body:
                     sc_dehy = save_config.setdefault("dehydration", {})
                     if not isinstance(sc_dehy, dict):

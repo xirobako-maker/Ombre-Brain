@@ -73,11 +73,29 @@ class DeletionRequestStore:
     DAILY_LIMIT = 10
     LIFETIME_LIMIT = 5
 
-    def __init__(self, buckets_dir: str, bucket_mgr: Any, embedding_engine: Any = None):
+    def __init__(self, buckets_dir: str, bucket_mgr: Any, embedding_engine: Any = None, *, config: dict | None = None):
         self.path = Path(buckets_dir) / ".human_deletion_requests.json"
         self.base_dir = str(buckets_dir)
         self.bucket_mgr = bucket_mgr
         self.human_delete = HumanDeleteExecutor(bucket_mgr, embedding_engine)
+        self.config = config if config is not None else {}
+
+    @property
+    def requires_approval(self) -> bool:
+        # Only an explicit persisted/runtime boolean opts out. Keep the same
+        # config object so Dashboard updates and rollbacks take effect at once.
+        return self.config.get("human_deletion_requires_approval") is not False
+
+    @staticmethod
+    def _supersede_direct_requests(state: dict, bucket_id: str) -> bool:
+        changed = False
+        for record in state["requests"]:
+            if record.get("bucket_id") == bucket_id and record.get("status") == "pending":
+                record["status"] = "superseded"
+                record["decided_at"] = datetime.now().astimezone().isoformat()
+                record["superseded_reason"] = "deleted directly by the human"
+                changed = True
+        return changed
 
     def _load(self) -> dict:
         try:
@@ -146,11 +164,18 @@ class DeletionRequestStore:
                     )
                 return {"ok": False, "error": "bucket not found", "code": "not_found"}
             is_letter = is_letter or is_letter_bucket(bucket)
-            if self.is_test_bucket(bucket):
+            if self.is_test_bucket(bucket) or not self.requires_approval:
                 result = await self.human_delete.execute(
                     bucket_id, action=action, is_letter=is_letter
                 )
-                result["exempt_test_data"] = True
+                if self.is_test_bucket(bucket):
+                    result["exempt_test_data"] = True
+                else:
+                    result["pending"] = False
+                    if result.get("ok"):
+                        state = self._load()
+                        if self._supersede_direct_requests(state, bucket_id):
+                            self._save(state)
                 return result
             if not reason:
                 return {"ok": False, "error": "deletion reason is required", "code": "reason_required"}
@@ -204,7 +229,7 @@ class DeletionRequestStore:
                     if not bucket:
                         missing.append(bucket_id)
                         continue
-                    if self.is_test_bucket(bucket):
+                    if self.is_test_bucket(bucket) or not self.requires_approval:
                         result = await self.human_delete.execute(
                             bucket_id,
                             action=action,
@@ -214,8 +239,9 @@ class DeletionRequestStore:
                             submitted.append({
                                 "id": bucket_id,
                                 "pending": False,
-                                "exempt_test_data": True,
+                                "exempt_test_data": self.is_test_bucket(bucket),
                             })
+                            changed = self._supersede_direct_requests(state, bucket_id) or changed
                         else:
                             errors.append({"id": bucket_id, "error": result.get("error", "archive failed")})
                         continue
@@ -323,6 +349,8 @@ class DeletionRequestStore:
         if decision not in {"approve", "reject"}:
             return {"ok": False, "error": "decision must be approve or reject"}
         async with _filesystem_turn(self.base_dir, "human-deletion-requests"):
+            if not self.requires_approval:
+                return {"ok": False, "error": "human deletion approval is disabled"}
             state = self._load()
             record = next((r for r in state["requests"] if r.get("id") == request_id), None)
             if not record or record.get("status") != "pending":
@@ -356,6 +384,8 @@ class DeletionRequestStore:
             return {"ok": True, "decision": decision, "bucket_id": record["bucket_id"]}
 
     async def render_pending_batch(self) -> str:
+        if not self.requires_approval:
+            return ""
         await self.reconcile_pending()
         items = []
         for record in self.pending_with_buckets():

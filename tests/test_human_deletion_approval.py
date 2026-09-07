@@ -150,5 +150,5 @@ def test_trace_binds_deletion_decision_to_required_bucket_id():
 def test_dashboard_skips_reason_prompt_for_known_erasable_test_buckets():
     source = (Path(__file__).parents[1] / "frontend" / "dashboard.html").read_text(encoding="utf-8")
     assert "function isKnownErasableTestBucket(id)" in source
-    assert "if (!isKnownErasableTestBucket(id))" in source
+    assert "if (approvalRequired && !isKnownErasableTestBucket(id))" in source
     assert "var allKnownTests = ids.every(isKnownErasableTestBucket);" in source

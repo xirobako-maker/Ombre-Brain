@@ -227,7 +227,7 @@ except RuntimeError as _emb_err:
     raise SystemExit(f"Ombre Brain 启动中止：{_emb_err}") from _emb_err
 bucket_mgr = BucketManager(config, embedding_engine=embedding_engine)  # Bucket manager / 记忆桶管理器
 deletion_requests = DeletionRequestStore(
-    config["buckets_dir"], bucket_mgr, embedding_engine
+    config["buckets_dir"], bucket_mgr, embedding_engine, config=config
 )
 _source_max_bytes = int(
     (config.get("limits") or {}).get("max_grow_input_bytes", 2 * 1024 * 1024)
