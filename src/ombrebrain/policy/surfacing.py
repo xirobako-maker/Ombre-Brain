@@ -147,6 +147,8 @@ class SurfacePolicyVM:
 
 def is_identity_record(bucket: Mapping[str, Any]) -> bool:
     metadata = bucket.get("metadata") or {}
+    if not isinstance(metadata, Mapping):
+        return False
     tags = metadata.get("tags") or []
     return (
         _metadata_type(metadata) in {"self", "i"}
