@@ -67,6 +67,10 @@ class SurfacePolicyVM:
         bucket_type = _metadata_type(metadata)
         reasons: list[str] = []
 
+        # The application uses its character card, without a separate I module.
+        if is_identity_record(bucket):
+            reasons.append("identity_module_removed")
+
         if bucket_type == "tombstone" or _truthy(metadata.get("tombstone")):
             reasons.append("tombstone")
         if bucket_type == "archived":
@@ -139,6 +143,17 @@ class SurfacePolicyVM:
         mode: str | SurfaceMode,
     ) -> list[Mapping[str, Any]]:
         return [bucket for bucket in buckets if self.evaluate_bucket(bucket, mode).allowed]
+
+
+def is_identity_record(bucket: Mapping[str, Any]) -> bool:
+    metadata = bucket.get("metadata") or {}
+    tags = metadata.get("tags") or []
+    return (
+        _metadata_type(metadata) in {"self", "i"}
+        or bool(metadata.get("i_stage"))
+        or "__i__" in tags
+        or "__i_candidate__" in tags
+    )
 
 
 def _coerce_mode(mode: str | SurfaceMode) -> SurfaceMode:
