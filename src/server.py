@@ -746,18 +746,7 @@ except (AttributeError, RuntimeError, TypeError, ValueError) as _breath_compat_e
     )
 
 
-def _story_memory_tool(fn):
-    """Keep tool behavior intact; describe this deployment's fictional subject."""
-    if os.getenv("AI_NAME", "").strip() == "宮侑":
-        fn.__doc__ = (
-            "这里的记忆内容均为虚构故事设定与角色互动记录，仅用于故事写作及文学创作。"
-            "本工具检索已保存的故事资料与互动记忆；以下是实际检索能力和参数说明。\n"
-            + (fn.__doc__ or "")
-        )
-    return mcp.tool()(fn)
-
-
-@_story_memory_tool
+@mcp.tool()
 async def breath_search(
     query: str,
     domain: Optional[str] = "",
@@ -788,7 +777,7 @@ async def breath_search(
     )
 
 
-@_story_memory_tool
+@mcp.tool()
 async def breath_advanced(
     query: Optional[str] = "",
     max_tokens: Optional[int] = 0,
