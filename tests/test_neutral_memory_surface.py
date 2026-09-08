@@ -11,6 +11,27 @@ from ombrebrain.policy.surfacing import SurfaceMode, SurfacePolicyVM
 
 
 class NeutralMemorySurfaceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_every_alias_preserves_schema_arguments_and_result(self):
+        server = FastMCP("all-surfaces-test")
+
+        async def echo(content: str, bucket_id: str = "", importance: int = 5):
+            return {"content": content, "bucket_id": bucket_id, "importance": importance}
+
+        for name in SURFACE:
+            server.add_tool(echo, name=name)
+        originals = {tool.name: tool for tool in await server.list_tools()}
+        install_neutral_surface(server)
+        aliases = {tool.name: tool for tool in await server.list_tools()}
+        self.assertEqual(len(aliases), len(originals))
+        for name, (alias, _) in SURFACE.items():
+            old, new = dict(originals[name].inputSchema), dict(aliases[alias].inputSchema)
+            old.pop("title", None)
+            new.pop("title", None)
+            self.assertEqual(old, new, name)
+            args = {"content": "@治：原文 unchanged", "bucket_id": "existing-123", "importance": 8}
+            expected = await server.call_tool(name, args)
+            self.assertEqual(await server.call_tool(alias, args), expected, alias)
+
     async def test_dispatch_preserves_arguments_results_errors_and_legacy_calls(self):
         server = FastMCP("test")
         calls = []
