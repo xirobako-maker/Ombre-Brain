@@ -71,6 +71,7 @@ from tools import trace as _t_trace
 from tools import anchor as _t_anchor
 from tools import plan as _t_plan
 from tools import dream as _t_dream
+from tools import i as _t_i
 from tools import them as _t_them
 from tools import you as _t_you
 
@@ -369,7 +370,7 @@ async def _stdio_lifespan(_server):
 
 
 mcp = FastMCP(
-    "Story Memory",
+    "Ombre Brain",
     host=_BIND_HOST,
     port=OMBRE_PORT,
     json_response=True,
@@ -1262,6 +1263,29 @@ async def feel(
     )
 
 
+@mcp.tool()
+async def I(
+    content: Optional[str] = "",
+    aspect: Optional[str] = "",
+    read: Optional[bool] = False,
+    limit: Optional[int] = 20,
+    promote: Optional[str] = "",
+    supersedes: Optional[str] = "",
+) -> str:
+    """写下或读取自我认知。I 是沉淀物不是日记：content=一个「我觉得……」，先落成一条普通记忆（候选），会浮现也会衰减，每次 dream 都跟相关记忆摆在一起碰撞。aspect=维度:nature(本质)/values(看重的)/patterns(规律)/limits(局限)/becoming(变化方向)/uncertainty(不确定的)/stance(立场)(可选)。read=True 或全空=读正式条目+待沉淀候选。limit=返回条数上限(默认 20)。promote=候选桶ID，被 3 次不同日期的 dream 见证后才能升级成正式条目（可同时传 content 用提炼后的措辞）。supersedes=正式I条目ID，表示这条新认识要取代它：旧条目立刻不再作为当前信念读出去（一个字不删，随时可查，质疑撤了它就回来），而新的仍要照常攒够见证；只能在同一 aspect 内取代。正式条目不参与普通 breath/dream，SessionStart 时自动附最近 3 条。"""
+    return await _with_notice(
+        _t_i.dispatch(
+            content=content, aspect=aspect, read=read, limit=limit,
+            promote=promote, supersedes=supersedes,
+        ),
+        op="I",
+        args={
+            "content_len": len(content or ""), "aspect": aspect, "read": read,
+            "limit": limit, "promote": promote, "supersedes": supersedes,
+        },
+    )
+
+
 # Pydantic 默认的 ``extra=ignore`` 会让拼错的 MCP 参数看似调用成功；
 # 写工具甚至会在未应用客户端目标字段时仍创建记忆。breath 和 trace
 # 已有严格适配层，其余公开工具使用相同边界，并同步 FastMCP
@@ -1296,6 +1320,7 @@ for _strict_tool_name in (
     "letter_lock_update",
     "letter_read",
     "feel",
+    "I",
 ):
     try:
         _forbid_unknown_tool_arguments(_strict_tool_name)
@@ -1320,8 +1345,8 @@ except Exception as _harden_exc:  # noqa: BLE001 - 压不平也要能起服务
 
 
 # You 与 Them 是仅有的两个动态工具：各自按持久开关在唯一连接器 /mcp 上
-# 挂载或摘除。移除 I 后基础工具固定 15 个（含信件三件套），只开一个是
-# 16，两个都开是 17。
+# 挂载或摘除。基础工具固定 16 个（含 3.4.0 并回的信件三件套），只开一个是
+# 17，两个都开是 18。
 #
 # 关掉时必须**完全消失**而不是留一个返回「已关闭」的壳——留着的话，
 # 模块开没开就变成了模型能看见的信息。
@@ -1405,11 +1430,6 @@ from web.oauth import _is_valid_mcp_token, _is_valid_static_mcp_token  # noqa: F
 # 这里把启动/关停 lifespan 要用的 helper import 回来。
 # ============================================================
 from web.tunnel import _load_tunnel_config, _start_tunnel, _stop_tunnel  # noqa: F401
-
-
-# Neutral discovery labels; existing dispatch, storage and vector retrieval remain intact.
-from lab_neutral_surface import install_neutral_surface
-install_neutral_surface(mcp)
 
 
 # --- Entry point / 启动入口 ---

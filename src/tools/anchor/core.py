@@ -74,7 +74,6 @@ async def anchor_release(bucket_id: str) -> str:
 
 
 async def pulse(include_archive: Optional[bool] = False) -> str:
-    from ombrebrain.policy.surfacing import is_identity_record
     if include_archive is None:
         include_archive = False
     await rt.decay_engine.ensure_started()
@@ -149,8 +148,6 @@ async def pulse(include_archive: Optional[bool] = False) -> str:
     plan_lines: list[str] = []
     letter_lines: list[str] = []
     for b in buckets:
-        if is_identity_record(b):
-            continue
         meta = b.get("metadata", {})
         btype = meta.get("type")
         logical_letter = is_letter_bucket(b)
