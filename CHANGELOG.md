@@ -2,6 +2,48 @@
 
 本项目版本号见根目录 `VERSION` 文件，Docker 镜像 tag 与之对应（`p0luz/ombre-brain:<VERSION>`）。
 
+## 3.6.14
+
+> 三条上游反馈。没有新功能——内存那条加的是读数，不是能力。
+
+### 修复 / Fixed
+
+- **写入被拒时不说是哪个字段，模型只好反复重写正文。** 写入一次查
+  content / concept_key / concept_value 三个字段，报错却只说「这条写不进去」。
+  - 真机上正文**完全合规**（「他做事犹豫，体制内工作」查下来是 False），
+    踩线的是 `concept_key="personality"`——那张禁止表里有 `personality` /
+    `性格` / `人格` / `mbti` / `identity`。模型看着那句指向正文的报错，
+    **连续五次重写正文**，那个键一次都没动。
+  - 现在逐字段查，报错点名：「踩线的是 **concept_key**（不是整条都不行）」，
+    并明说「正文没被点名就说明正文本身没问题，重写它没有用」。you / them 同改。
+  - **过滤规则本身没有放松**：rule.md 13.2 的禁止清单里明写了「性格」，
+    13.3 说 them 用同一张表。拦是对的，只是没说清拦在哪。
+- **You 读回看不见自己在攒什么，三日门槛因此走不完。** 候选不进召回是对的，
+  但这也意味着写完就失联：重申要求「同一个 concept_key + concept_value 再写
+  一次」，而那两个字符串只存在于写它的那次对话里，换窗之后无从得知。
+  - them 早就有这段欠账清单（`them/service.py::_pending_digest`），You 一直
+    没有——上游反馈里 You 的抱怨比 them 尖锐，原因就在这。
+  - 现在裸读 `You()` 会列出还在攒的候选，带齐重申需要的全部东西：
+    `concept_key=concept_value`、aspect、正文、**bucket_ids**、`id`、
+    还差几个不同的日子。任何一个窗口拿到就能接力。
+  - **带 query 的读回不附欠账**：`recall(query="Lin")` 问的是「我对 Lin 了解
+    什么」，拿还没算数的候选去回答是答非所问。被动浮现同样拿不到——欠账是
+    待办，浮现是「想起了什么」。
+  - them 的清单一并补上了 `bucket_ids`。
+
+### 新增 / Added
+
+- **诊断页多一段进程内存读数**（`/api/system/diagnostics` 的 `process_memory`）。
+  上游报了 Render 512MB 上 OOM，但报告里只有「内存持续增长」——没有 RSS、
+  没有上限确认、没有哪一类对象在涨。仓库里几个最可疑的地方查下来都是有界的
+  （语义检索走 `fetchmany(32)` + O(top_k) 堆、无模块级常驻缓存、metrics 无状态），
+  再往下就是猜。
+  - RSS 取自 `/proc/self/status`；**容器上限走 cgroup 而不是 `/proc/meminfo`**——
+    容器里后者报的是宿主机内存，照它算会得出「用了 2%」而进程正在被 OOM
+    killer 杀掉。v2 的 `"max"` 与 v1 那个接近 2^63 的哨兵值都当作「没有上限」。
+  - 超过 75% 报 warning、90% 报 error，并提示把这一段贴进 issue。
+  - Linux 以外安静降级（`available: false`），不让诊断页整页失败。
+
 ## 3.6.13
 
 > 一个参数没开出来的 bug。没有新功能。

@@ -32,7 +32,7 @@
     },
     {
       "path": "src/VERSION",
-      "sha256": "7273d480c63e804dad9ee52d0e67c947a8af28df1602b4cd55789624fdd2af18",
+      "sha256": "050b1be586f238ff4c9b66a45397a4df7bd9de6a8809205f4f7dba0234d93790",
       "size": 6
     },
     {
@@ -234,6 +234,11 @@
       "path": "src/ombrebrain/observability/metrics.py",
       "sha256": "8d629ef914d23fa73a79d37eb5585500c118ceec958995a2816d103aac57d02b",
       "size": 6193
+    },
+    {
+      "path": "src/ombrebrain/observability/process_memory.py",
+      "sha256": "cc05afb62fc0a5292741b03d2159bbaeb9d229db8ee2ec580bd5d398e9b75c8b",
+      "size": 4367
     },
     {
       "path": "src/ombrebrain/policy/__init__.py",
@@ -492,13 +497,13 @@
     },
     {
       "path": "src/ombrebrain/them/safety.py",
-      "sha256": "ca681e921a842c92d85248748f35bbcd48b50b1591487a3644f46b088da95542",
-      "size": 10391
+      "sha256": "0f6c3c9c7f4e6c606ba1fd98e3d55a2ad88c9625e7d5b55b80fd30471e8073e3",
+      "size": 10660
     },
     {
       "path": "src/ombrebrain/them/service.py",
-      "sha256": "7edada396afbdf4f7f14f0e2f985a9afaa276e6ce586933413179c86cb984882",
-      "size": 56255
+      "sha256": "1c62cfe54faa2dc59f492329074cc2e85bfa55253d82b482727022e0fffb7954",
+      "size": 57165
     },
     {
       "path": "src/ombrebrain/them/store.py",
@@ -527,13 +532,13 @@
     },
     {
       "path": "src/ombrebrain/you/safety.py",
-      "sha256": "4f01f7aa670b1e9c1004f065574cbfb6954d8d80fe6c94a0a5f2ca33bbf59d7f",
-      "size": 3538
+      "sha256": "6951b499f03f37aec06ba1897726c05d1f3bd19749b311bf1ae2435eba5d3c6b",
+      "size": 4374
     },
     {
       "path": "src/ombrebrain/you/service.py",
-      "sha256": "b084c473965dd5bb106142158de2198220f70df9ebc0454d097322dd9663d66f",
-      "size": 31580
+      "sha256": "2d6800c9ffc0fd18f22f8d96c5da827fae857ffed8de970272423e459ebae54a",
+      "size": 35382
     },
     {
       "path": "src/ombrebrain/you/store.py",
@@ -867,8 +872,8 @@
     },
     {
       "path": "src/web/system.py",
-      "sha256": "4bb703b425fc241ff1550ad1f137be70041b04e3f9d7666df80357a61da265a4",
-      "size": 55865
+      "sha256": "c9947e27b0b949f490a30acf0311ec5568b0a6efef087ef250b8bfe14c6c6c48",
+      "size": 57980
     },
     {
       "path": "src/web/them.py",
@@ -892,5 +897,5 @@
     }
   ],
   "rollout_strategy": "single-node",
-  "version": "3.6.13"
+  "version": "3.6.14"
 }
